@@ -1,6 +1,4 @@
 from sdv.single_table import CTGANSynthesizer
-
-
 class DataSynthetizer:
     def __init__(self, name, data_loader=None, loaded_synthetizer=None):
         if loaded_synthetizer is not None:
