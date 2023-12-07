@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 
-def remove_values_to_threshold(file_path, columns_to_modify, missing_percentage):
+def remove_values_to_threshold(file_path, columns_to_modify, missing_percentage, output_file_path):
     # Load the dataset
     df = pd.read_csv(file_path)
 
@@ -24,8 +24,8 @@ def remove_values_to_threshold(file_path, columns_to_modify, missing_percentage)
             print(f"Column '{column}' not found in dataset.")
 
     # Save the modified dataset
-    df.to_csv('modified_dataset.csv', index=False)
-    print("Modified dataset saved as 'modified_dataset.csv'.")
+    df.to_csv(output_file_path, index=False)
+    print(f"Missing dataset saved as {output_file_path}.")
 
 
 def remove_columns_from_csv(file_path, columns_to_remove, output_file_path):
