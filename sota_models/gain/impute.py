@@ -54,10 +54,12 @@ def main(args):
     # Load data and introduce missingness
     ori_data_x, miss_data_x, data_m = data_loader(data_name)
 
-    print('missing data mask matrix: ', data_m)
+    # print('missing data mask matrix: ', data_m)
 
     # Impute missing data
     imputed_data_x = gain(miss_data_x, gain_parameters)
+
+    print('imputed data: ', imputed_data_x)
 
     # Report the RMSE performance
     rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)

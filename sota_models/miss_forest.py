@@ -2,8 +2,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sklearn.neighbors._base
+import sys
+sys.modules['sklearn.neighbors.base'] = sklearn.neighbors._base
 from missingpy import MissForest
-
 
 class MissForestImputer:
     def __init__(self, original_data, missing_data):

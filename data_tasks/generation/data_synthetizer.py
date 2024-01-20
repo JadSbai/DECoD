@@ -1,4 +1,6 @@
 from sdv.single_table import CTGANSynthesizer
+
+
 class DataSynthetizer:
     def __init__(self, name, data_loader=None, loaded_synthetizer=None):
         if loaded_synthetizer is not None:
@@ -13,7 +15,7 @@ class DataSynthetizer:
                 filepath=f'data_generation/saved_synthetizers/{name}_synthetizer.pkl'
             )
 
-    def sample_lol(self, n):
+    def sample_data(self, n):
         return self.synthesizer.sample(num_rows=n, output_file_path=f'datasets/synthetic_{self.name}.csv')
 
     def get_metadata(self):

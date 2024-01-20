@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import miceforest as mf
 
-"""Use the MICE algorithm to impute missing values. Uses a LightGBM model under the hood."""
+"""Use the MICE algorithm to impute missing values. Uses the LightGBM model under the hood."""
+
+
 class MiceImputer:
     def __init__(self, original_data, missing_data):
         self.imputer = mf.ImputationKernel(
@@ -19,6 +21,7 @@ class MiceImputer:
         self.imputer.mice(3, verbose=True)
 
     def impute(self):
+        self.fit()
         self.imputed_data = self.imputer.complete_data(dataset=0, inplace=False)
 
     def accuracy(self):
