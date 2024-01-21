@@ -1,5 +1,5 @@
 import comet_llm
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 
 
@@ -9,8 +9,10 @@ class MentalHealthImputer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.tokenizer.pad_token = self.tokenizer.eos_token
         # The optimization tricks are only supported on GPU
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype=torch.float16,
-                                                          attn_implementation="flash_attention_2", device_map="auto", load_in_4bit=True)
+        self.config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
+        self.model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True,
+                                                          attn_implementation="flash_attention_2", device_map="auto",
+                                                          quantization_config=self.config)
         # The optimization tricks are only supported on GPU
         self.model.to(self.device)
         self.manager = manager
