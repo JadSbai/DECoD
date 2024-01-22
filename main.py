@@ -1,5 +1,3 @@
-import re
-
 import numpy as np
 from sdv.single_table import CTGANSynthesizer
 import data_tasks.generation.data_loader as dl
@@ -7,11 +5,13 @@ import data_tasks.generation.data_synthetizer as ds
 import pandas as pd
 from LLMs.hosted_llm_imputer import HostedMentalHealthImputer
 from LLMs.imputation_manager import ImputationManager
-from LLMs.utils import remove_values_to_threshold
+from sota_models.miss_forest import MissForestImputer
+from utils import plot_imputation_metrics
+from sota_models.gain.gain_imputer import GAINImputer
 
 
 def synthesize():
-    # # synthesizer = create_new_synthetizer('japan_mental')
+    # synthesizer = create_new_synthetizer('japan_mental')
     # synthesizer = load_saved_synthetizer('japan_mental')
     # # synthesizer.sample_lol(50)
     # real_data = pd.read_csv('datasets/japan_mental.csv')
@@ -21,18 +21,7 @@ def synthesize():
     # to_remove = ['Phone', 'Japanese', 'English', 'Stay', 'Age', 'ToSC','APD','AHome','APH','Afear','ACS','AGuilt','AMiscell','ToAS','Partner','Friends','Parents','Relative','Profess', 'Phone','Doctor','Reli','Alone','Others','Internet','Partner_bi','Friends_bi','Parents_bi','Relative_bi','Professional_bi','Phone_bi','Doctor_bi','religion_bi','Alone_bi','Others_bi','Internet_bi']
     # to_remove = ['inter_dom', 'Region', 'Age_cate', 'Stay_Cate', 'Japanese_cate', 'English_cate', 'Intimate', 'Dep',
     #              'DepType', 'ToDep']
-    # remove_columns_from_csv('datasets/japan_mental.csv', to_remove, 'datasets/new_japan_mental.csv')
-    remove_values_to_threshold('datasets/new_japan_mental.csv', ['Suicide'], 70,
-                               'datasets/missing_japan_mental.csv')
-    # report_missing_values('datasets/old_japan_mental.csv')
-    # original_data = pd.read_csv('datasets/japan_mental.csv')
-    # missing_data = pd.read_csv('datasets/missing_japan_mental.csv')
-    # EBM = ebm.EBMImputer(original_data, missing_data)
-    # EBM.impute()
-
-    # Mice = mice.MiceImputer(original_data, missing_data)
-    # Mice.impute()
-    # print(Mice.imputed_data)
+    pass
 
 
 def create_new_synthetizer(synthesizer_name):
@@ -49,7 +38,7 @@ def load_saved_synthetizer(synthesizer_name):
     return ds.DataSynthetizer(synthesizer_name, loaded_synthetizer=loaded_synthesizer)
 
 
-def impute():
+def LLM_impute():
     mistral_id = "mistralai/Mixtral-8x7B-Instruct-v0.1"
     phixtral_id = "mlabonne/phixtral-4x2_8"
 
@@ -66,6 +55,27 @@ def impute():
     imputation_manager.compute_error(output)
 
 
+def classical_impute():
+    original_data = pd.read_csv('datasets/new_japan_mental.csv')
+    missing_data = pd.read_csv('datasets/missing_japan_mental.csv')
+    df_or = original_data.copy()
+    for c in df_or.columns:
+        random_index = np.random.choice(df_or.index, size=75)
+        df_or.loc[random_index, c] = np.nan
+    imputer = MissForestImputer(original_data, df_or)
+    imputer.fit()
+    metrics = imputer.compute_error()
+    plot_imputation_metrics(metrics)
+    imputer.plot_categorical_comparisons()
+
+
+def gain_impute():
+    imputer = GAINImputer(data_name='japan_mental')
+    imputer.impute()
+    imputer.compute_error()
+
+
+
 if __name__ == '__main__':
     # synthesize()
-    impute()
+    gain_impute()

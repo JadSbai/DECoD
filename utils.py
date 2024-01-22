@@ -95,34 +95,38 @@ def retrieve_true_values(true_dataset, imputed_values):
     return true_values
 
 
-def compute_categorical_error(true_values, imputed_values, categories):
+from sklearn.metrics import precision_score, recall_score, fbeta_score, accuracy_score
 
-    print("True Values: ", true_values)
-    print("Imputed Values: ", imputed_values)
-    print("Categories: ", categories)
-    # # Create confusion matrix
-    # cm = confusion_matrix(true_values, imputed_values, labels=categories)
-    #
-    # # Compute weighted error
-    # weights = generate_weight_matrix(categories)
-    # weighted_error = np.sum(cm * weights) / np.sum(cm)
 
-    # Calculate Precision, Recall, F1 Score, and Matching Percentage (Accuracy)
-    precision = precision_score(true_values, imputed_values, average='weighted', labels=['Yes', 'No'])
-    recall = recall_score(true_values, imputed_values, average='weighted', labels=['Yes', 'No'])
+def compute_imputation_metrics(true_data, imputed_data, beta=2.0):
+    """
+    Computes precision, recall, fbeta score, and accuracy for each categorical column.
 
-    # true_values and predicted_values should be defined as your actual data
-    fbeta = fbeta_score(true_values, imputed_values, beta=2, average='weighted', labels=['Yes', 'No'])
-    mp = accuracy_score(true_values, imputed_values)
+    :param true_data: DataFrame with true values.
+    :param imputed_data: DataFrame with imputed values.
+    :param beta: Weight of recall in the fbeta score.
+    :return: Dictionary of metrics for each column.
+    """
+    metrics = {}
+    for col in true_data.columns:
+        true_col = true_data[col].dropna()
+        imputed_col = imputed_data[col].loc[true_col.index]
 
-    # Return a dictionary of all the metrics
-    return {
-        # "Weighted Error": weighted_error,
-        "Precision": precision,
-        "Recall": recall,
-        "Fβ Score (β=2):": fbeta,
-        "Matching Percentage": mp,
-    }
+        # Compute metrics
+        precision = precision_score(true_col, imputed_col, average='macro', zero_division=0)
+        recall = recall_score(true_col, imputed_col, average='macro', zero_division=0)
+        fbeta = fbeta_score(true_col, imputed_col, beta=beta, average='macro', zero_division=0)
+        accuracy = accuracy_score(true_col, imputed_col)
+
+        # Store metrics
+        metrics[col] = {
+            'precision': precision,
+            'recall': recall,
+            'fbeta_score': fbeta,
+            'accuracy': accuracy
+        }
+
+    return metrics
 
 
 def compute_numerical_error(true_values, imputed_values):
@@ -163,3 +167,33 @@ def get_corresponding_true_values(imputed_values, true_subset):
             true_values_corresponding[key] = true_value
 
     return true_values_corresponding
+
+
+import matplotlib.pyplot as plt
+
+
+def plot_imputation_metrics(metrics):
+    """
+    Plots bar charts for precision, recall, fbeta score, and accuracy for each column.
+
+    :param metrics: Dictionary of metrics for each column.
+    """
+    n_cols = len(metrics)
+    fig, axs = plt.subplots(n_cols, 1, figsize=(10, n_cols * 4))
+
+    if n_cols == 1:
+        axs = [axs]
+
+    for ax, (col, col_metrics) in zip(axs, metrics.items()):
+        categories = list(col_metrics.keys())
+        values = [col_metrics[cat] for cat in categories]
+
+        ax.bar(categories, values, color=['blue', 'orange', 'green', 'red'])
+        ax.set_title(f"Imputation Metrics for {col}")
+        ax.set_ylabel("Score")
+        ax.set_ylim(0, 1)
+        ax.legend(categories)
+
+    plt.tight_layout()
+    plt.show()
+

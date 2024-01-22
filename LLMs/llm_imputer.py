@@ -1,4 +1,5 @@
 import comet_llm
+import psutil
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 
@@ -18,15 +19,21 @@ class MentalHealthImputer:
         self.manager = manager
 
     def impute_data(self):
-        prompt = self.manager.get_prompt()
-        print('ready!!')
-        inputs = self.tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(self.device)
-        outputs = self.model.generate(**inputs, max_new_tokens=1000)
-        output = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-        comet_llm.log_prompt(
-            prompt=prompt,
-            output=output,
-            api_key="aoTlL1hYOBHc0tfqLPaEu9Z2n",
-        )
-        print(output)
-        return output
+        try:
+            prompt = self.manager.get_prompt()
+            print('ready!!')
+            inputs = self.tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(self.device)
+            outputs = self.model.generate(**inputs, max_new_tokens=1000)
+            output = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
+            comet_llm.log_prompt(
+                prompt=prompt,
+                output=output,
+                api_key="aoTlL1hYOBHc0tfqLPaEu9Z2n",
+            )
+            print(output)
+            return output
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
+        finally:
+            print(f"Memory usage: {psutil.virtual_memory().percent}%")

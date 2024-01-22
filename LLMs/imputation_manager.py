@@ -1,6 +1,5 @@
-from LLMs.utils import extract_values_from_text, \
-    compute_categorical_error, compute_numerical_error, get_imputed_dataset, \
-    get_corresponding_true_values
+from utils import extract_values_from_text, \
+    compute_imputation_metrics, get_corresponding_true_values, get_imputed_dataset
 
 
 class ImputationManager:
@@ -65,15 +64,8 @@ class ImputationManager:
         print("Imputed: ", imputed_values)
         true = get_corresponding_true_values(imputed_values, self.true_subset)
         print("True: ", true)
-        # self.imputed_data = get_imputed_dataset(self.missing_subset, imputed_values)
-        imputed_list = [imputed_values[key] for key in imputed_values]
-        true_list = [true[key] for key in imputed_values]
-        errors = compute_categorical_error(true_list, imputed_list, self.category_dict)
-        # for col in self.missing_columns:
-        #     if col in self.categorical_cols:
-        #         errors[col] = compute_categorical_error(self.true_subset[col], self.imputed_data[col], self.category_dict[col])
-        #     elif col in self.numerical_cols:
-        #         errors[col] = compute_numerical_error(self.true_subset[col], self.imputed_data[col])
+        self.imputed_data = get_imputed_dataset(self.missing_subset, imputed_values)
+        errors = compute_imputation_metrics(self.true_subset, self.imputed_data)
         print(errors)
 
 

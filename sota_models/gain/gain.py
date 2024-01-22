@@ -30,9 +30,9 @@ tf.disable_v2_behavior()
 import numpy as np
 from tqdm import tqdm
 
-from utils import normalization, renormalization, rounding
-from utils import xavier_init
-from utils import binary_sampler, uniform_sampler, sample_batch_index
+from .gain_utils import normalization, renormalization, rounding
+from .gain_utils import xavier_init
+from .gain_utils import binary_sampler, uniform_sampler, sample_batch_index
 
 
 def gain(data_x, gain_parameters):
