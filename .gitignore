@@ -1,0 +1,4 @@
+venv/
+.uuid
+__pycache__/
+*.pyc
