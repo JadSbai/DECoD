@@ -19,5 +19,4 @@ psutil
 torch
 matplotlib
 comet_llm
-vllm
 langchain

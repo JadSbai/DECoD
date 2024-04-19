@@ -17,9 +17,10 @@ def remove_values_to_threshold(file_path, columns_to_modify, missing_percentage,
     for column in columns_to_modify:
         # Check if the column exists in the dataset
         if column in df.columns:
+            percentage = missing_percentage[column]
             # Calculate the number of values to remove
             total_values = len(df[column])
-            values_to_remove = int(total_values * missing_percentage / 100)
+            values_to_remove = int(total_values * percentage / 100)
 
             # Select random indices to remove
             indices_to_remove = random.sample(range(total_values), values_to_remove)
