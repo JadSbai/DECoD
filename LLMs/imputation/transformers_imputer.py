@@ -3,18 +3,19 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, GenerationConfig
 import torch
 import time
-import model_ids
+import LLMs.utils.model_ids
 
 
 class TransformersImputer:
     def __init__(self, model_id, manager):
         torch.set_default_device("cuda")
+        torch.random.manual_seed(0)
         self.model_id = model_id
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id, torch_dtype="auto", trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id, torch_dtype="auto", trust_remote_code=True, device_map="cuda")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # The optimization tricks are only supported on GPU
         self.config = BitsAndBytesConfig(load_in_8bit = True, bnb_4bit_compute_dtype=torch.float16)
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, device_map="auto", torch_dtype=torch.float16)
+        self.model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, device_map="auto")
         self.manager = manager
 
 
@@ -39,7 +40,7 @@ class TransformersImputer:
                         generation_config=generation_config,
                         return_dict_in_generate=True,
                         output_scores=True,
-                        max_new_tokens=1024,
+                        max_new_tokens=300,
                         pad_token_id=self.tokenizer.eos_token_id,
                         repetition_penalty=1.15,
                     )

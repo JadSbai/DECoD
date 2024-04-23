@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+
+from LLMs.imputation.imputation_manager import ImputationManager
+from LLMs.imputation.transformers_imputer import TransformersImputer
 # from LLMs.transformers_imputer import TransformersImputer
 # from LLMs.imputation_manager import ImputationManager
 from sota_models.miss_forest import MissForestImputer
@@ -7,6 +10,7 @@ from utils import plot_imputation_metrics, remove_values_to_threshold
 from sota_models.gain.gain_imputer import GAINImputer
 from data_tasks.generation.clinical_data_synthetizer import ClinicalSynthetizer
 from insights import BirthInsights
+from LLMs.fine_tuning.generate_CoT import GPT4Generator
 
 
 def LLM_impute():
@@ -77,11 +81,10 @@ def insights():
 
 
 if __name__ == '__main__':
-    insights()
+    print('starting')
+    data = pd.read_csv('datasets/clinical/birth_data.csv')
+    generator = GPT4Generator(data, ['MAT_SMOKING_NC', 'BREASTFEED_BIRTH_FLG_NC', 'BIRTH_WEIGHT_NC', 'GEST_AGE_NC'])
+    generator.list_files()
+    generator.create_batch('file-h9GJRFOEo2hNJLPRE3MYyvJf')
+    # insights()
     # synthetize()
-    # gain_impute()
-    # LLM_impute()
-    # download_model("osunlp/TableLlama")
-    # print('starting')
-    # vllm = VLLMImputer()
-    # vllm.generate()

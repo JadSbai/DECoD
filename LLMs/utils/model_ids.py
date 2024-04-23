@@ -6,3 +6,4 @@ mistral = "mistralai/Mistral-7B-Instruct-v0.2" # Try again
 phi2 = "microsoft/phi-2" # Returns something
 jellyfish = "NECOUDBFM/Jellyfish" # 13B parameters (26GB), try with vllm library. 
 tableLlama = "osunlp/TableLlama" # No tokenizer
+phi3 = "microsoft/Phi-3-mini-128k-instruct" # No tokenizer
