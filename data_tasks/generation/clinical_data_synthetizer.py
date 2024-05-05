@@ -131,4 +131,4 @@ class ClinicalSynthetizer:
         self.df['PREV_LIVEBIRTHS_NC'] = prev_livebirths_col
         self.df['MAT_REGION_NC'] = region_col
 
-        self.df.to_csv('./datasets/clinical/birth_data.csv', index=False)
+        self.df.to_csv('./datasets/clinical/birth_data_small.csv', index=False)

@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+import pickle
 from LLMs.imputation.imputation_manager import ImputationManager
 from LLMs.imputation.transformers_imputer import TransformersImputer
 # from LLMs.transformers_imputer import TransformersImputer
@@ -10,7 +10,13 @@ from utils import plot_imputation_metrics, remove_values_to_threshold
 from sota_models.gain.gain_imputer import GAINImputer
 from data_tasks.generation.clinical_data_synthetizer import ClinicalSynthetizer
 from insights import BirthInsights
+from sota_models.hyper import HyperImputer
+import time
 from LLMs.fine_tuning.generate_CoT import GPT4Generator
+
+from huggingface_hub import hf_hub_download
+
+
 
 
 def LLM_impute():
@@ -51,11 +57,10 @@ def gain_impute():
 
 
 def synthetize():
-    print('Started!')
     synth = ClinicalSynthetizer(1000)
     synth.generate()
     missing_percentage = {
-        # 'BIRTH_WEIGHT_NC': 0.2,
+        'BIRTH_WEIGHT_NC': 20,
         # 'GEST_AGE_NC': 0.2,
         # 'MAT_AGE_NC': 0.02,
         'MAT_SMOKING_NC': 40,
@@ -64,27 +69,41 @@ def synthetize():
     }
 
     columns_to_modify = [
-        # 'BIRTH_WEIGHT_NC',
+        'BIRTH_WEIGHT_NC',
         # 'GEST_AGE_NC',
         # 'MAT_AGE_NC',
         'MAT_SMOKING_NC',
         'BREASTFEED_BIRTH_FLG_NC',
         # 'MAT_REGION_NC'
     ]
-    remove_values_to_threshold('datasets/clinical/birth_data.csv', columns_to_modify, missing_percentage,
-                               'datasets/clinical/birth_data_missing.csv')
+    remove_values_to_threshold('datasets/clinical/birth_data_small.csv', columns_to_modify, missing_percentage,
+                               'datasets/clinical/birth_data_missing_small.csv')
     print('Finished!')
-
-
-def insights():
-    insights = BirthInsights(pd.read_csv('datasets/clinical/birth_data_missing.csv'))
 
 
 if __name__ == '__main__':
     print('starting')
-    data = pd.read_csv('datasets/clinical/birth_data.csv')
-    generator = GPT4Generator(data, ['MAT_SMOKING_NC', 'BREASTFEED_BIRTH_FLG_NC', 'BIRTH_WEIGHT_NC', 'GEST_AGE_NC'])
-    generator.list_files()
-    generator.create_batch('file-h9GJRFOEo2hNJLPRE3MYyvJf')
+    # synthetize()
+
+    birth_data = pd.read_csv('datasets/clinical/birth_data_missing.csv')
+    true_data = pd.read_csv('datasets/clinical/birth_data.csv')
+    insights = BirthInsights(birth_data)
+    hyper_imputer = HyperImputer(insights.df, true_data, 'hyperimpute')
+    start = time.time()
+    # targets = ['gain', 'mice', 'missforest']
+    # results = hyper_imputer.benchmark_models(targets)
+    # print(results)
+    hyper_imputer.subpopulation_impute()
+    print("Time taken: ", time.time() - start)
+    hyper_imputer.plot_performance()
+    hyper_imputer.explain()
+
+
+
+
+    # data = pd.read_csv('datasets/clinical/birth_data.csv')
+    # generator = GPT4Generator(data, ['MAT_SMOKING_NC', 'BREASTFEED_BIRTH_FLG_NC', 'BIRTH_WEIGHT_NC', 'GEST_AGE_NC'])
+    # generator.list_files()
+    # generator.create_batch('file-h9GJRFOEo2hNJLPRE3MYyvJf')
     # insights()
     # synthetize()

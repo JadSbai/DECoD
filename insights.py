@@ -10,7 +10,7 @@ from clinical_utils import (get_variables_description, create_induced_variables,
 def get_known_correlations(target):
     known_correlations = []
     if target == InducedVariableName.MS.value:
-        corr = Correlation(InductorVariable.BW, InductorVariable.MS, None, 'This is a known correlation: Smoking during pregnancy is known to be correlated with lower birth weight.')
+        corr = Correlation(InductorVariable.BW, InductorVariable.MS, None, 'Smoking during pregnancy is known to be correlated with lower birth weight.')
         known_correlations.append(corr)
     return known_correlations
 
@@ -106,7 +106,7 @@ class BirthInsights:
 
         def categorize_row(row):
             categories = [name for name, condition in CRITERIA.items() if condition(row)]
-            return ','.join(categories) if categories else 'None'
+            return ','.join(categories) if categories else np.nan
 
         self.df['subpopulation'] = self.df.apply(categorize_row, axis=1)
 
