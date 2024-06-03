@@ -1,109 +1,129 @@
-import numpy as np
-import pandas as pd
-import pickle
-from LLMs.imputation.imputation_manager import ImputationManager
-from LLMs.imputation.transformers_imputer import TransformersImputer
-# from LLMs.transformers_imputer import TransformersImputer
-# from LLMs.imputation_manager import ImputationManager
-from sota_models.miss_forest import MissForestImputer
-from utils import plot_imputation_metrics, remove_values_to_threshold
-from sota_models.gain.gain_imputer import GAINImputer
+from utils import remove_values_to_threshold
 from data_tasks.generation.clinical_data_synthetizer import ClinicalSynthetizer
-from insights import BirthInsights
-from sota_models.hyper import HyperImputer
-import time
-from LLMs.fine_tuning.generate_CoT import GPT4Generator
+import pandas as pd
+import numpy as np
+from impute.data_centric_impute import HyperImputer
+from sklearn.preprocessing import OrdinalEncoder
+import os
+from statsmodels.stats.proportion import proportion_confint
+from sklearn.metrics import mean_absolute_error
 
-from huggingface_hub import hf_hub_download
-
-
-
-
-def LLM_impute():
-    print("let's go")
-    description = "The dataset comprises of records from both international and domestic students in an international university in Japan. This dataset is used to examine the mental health conditions and help-seeking behaviors of international and domestic students in a multicultural environment. All column names are self explanatory except for the column called “DepSev” which indicates the severity of depressive disorder reported based on the following criteria: Minimal depression (Min), Mild depression (Mild), Moderate depression (Mod), Moderately severe depression (ModSev), Severe depression (Sev). The column called “Suicide” indicates whether students have suicidal Ideation in the last 2 weeks or not.  "
-    prior = "Students who tend to have a higher depression severity are more likely to have had suicidal ideation than those with low depressive severity."
-    original_data = pd.read_csv('datasets/japan/new_japan_mental.csv')
-    missing_data = pd.read_csv('datasets/japan/missing_japan_mental.csv')
-
-    model_id = model_ids.mistral
-
-    imputation_manager = ImputationManager(dataset=original_data, missing_dataset=missing_data,
-                                           dataset_description=description, clinician_prior=prior)
-
-    imputer = TransformersImputer(model_id=model_id, manager=imputation_manager)
-    output = imputer.impute_data()
-    imputation_manager.compute_error(output)
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
 
-def classical_impute():
-    original_data = pd.read_csv('datasets/japan/new_japan_mental.csv')
-    missing_data = pd.read_csv('datasets/japan/missing_japan_mental.csv')
-    df_or = original_data.copy()
-    for c in df_or.columns:
-        random_index = np.random.choice(df_or.index, size=75)
-        df_or.loc[random_index, c] = np.nan
-    imputer = MissForestImputer(original_data, df_or)
-    imputer.fit()
-    metrics = imputer.compute_error()
-    plot_imputation_metrics(metrics)
-    imputer.plot_categorical_comparisons()
-
-
-def gain_impute():
-    imputer = GAINImputer(data_name='japan_mental')
-    imputer.impute()
-    imputer.compute_error()
-
-
-def synthetize():
+def synthesize():
     synth = ClinicalSynthetizer(1000)
     synth.generate()
     missing_percentage = {
         'BIRTH_WEIGHT_NC': 20,
-        # 'GEST_AGE_NC': 0.2,
-        # 'MAT_AGE_NC': 0.02,
         'MAT_SMOKING_NC': 40,
         'BREASTFEED_BIRTH_FLG_NC': 80,
-        # 'MAT_REGION_NC': 5
     }
 
     columns_to_modify = [
         'BIRTH_WEIGHT_NC',
-        # 'GEST_AGE_NC',
-        # 'MAT_AGE_NC',
         'MAT_SMOKING_NC',
         'BREASTFEED_BIRTH_FLG_NC',
-        # 'MAT_REGION_NC'
     ]
-    remove_values_to_threshold('datasets/clinical/birth_data_small.csv', columns_to_modify, missing_percentage,
-                               'datasets/clinical/birth_data_missing_small.csv')
+    remove_values_to_threshold('datasets/fake_clinical/birth_data_small.csv', columns_to_modify, missing_percentage,
+                               'datasets/fake_clinical/birth_data_missing_small.csv')
     print('Finished!')
 
 
+def prep_data(original_dataset, comp_dataset_file, dep_file, is_dep=False):
+    full_df = pd.read_csv(comp_dataset_file)
+    old_df = pd.read_csv(original_dataset)
+    deprivation_df = pd.read_csv(dep_file)
+
+    full_df['LSOA_CD_BIRTH_NC'] = old_df['LSOA_CD_BIRTH_NC'].copy()
+    full_df['BREASTFEED_BIRTH_FLG_NC'] = old_df['BREASTFEED_BIRTH_FLG_NC'].copy()
+    full_df['BIRTH_WEIGHT_NC'] = old_df['BIRTH_WEIGHT_NC'].astype('float64') * 1000
+    full_df['GEST_AGE_NC'] = old_df['GEST_AGE_NC'].copy()
+    full_df['MAT_AGE_NC'] = old_df['MAT_AGE_NC'].copy()
+
+    df_true = full_df.copy()
+    df_true = df_true[
+        ['SMOKE_NC_fill', 'MAT_AGE_NC_fill', 'GEST_AGE_NC_fill', 'BIRTH_WEIGHT_NC_fill', 'BREASTFEED_BIRTH_NC_fill',
+         'LSOA_CD_BIRTH_NC_fill']]
+    df_true['SMOKE_NC_fill'] = df_true['SMOKE_NC_fill'].replace(9.0, np.nan)
+    df_true.dropna(inplace=True)
+    df_true.rename(
+        columns={'SMOKE_NC_fill': 'SMOKE_NC', 'MAT_AGE_NC_fill': 'MAT_AGE_NC', 'GEST_AGE_NC_fill': 'GEST_AGE_NC',
+                 'BIRTH_WEIGHT_NC_fill': 'BIRTH_WEIGHT_NC'}, inplace=True)
+
+    deprivation_df.rename(columns={'Code': 'LSOA_CD_BIRTH_NC', 'Decile': 'DEP_SCORE'}, inplace=True)
+    df = pd.merge(full_df, deprivation_df[['LSOA_CD_BIRTH_NC', 'DEP_SCORE']], on='LSOA_CD_BIRTH_NC', how='left')
+
+    columns_to_drop = [col for col in full_df.columns if not col.endswith('NC')] + ['ALF_MTCH_PCT_NC', 'CHILD_ALF_PE',
+                                                                                    'ALF_STS_NC', 'MAT_ALF_PE_NC',
+                                                                                    'MAT_ALF_STS_NC',
+                                                                                    'MAT_ALF_MTCH_PCT_NC',
+                                                                                    'MAT_SMOKING_NC']
+    df_missing = df.drop(columns=columns_to_drop)
+
+    df_missing = df_missing.loc[df_true.index]
+    df_missing['BREASTFEED_BIRTH_FLG_NC'] = df_missing['BREASTFEED_BIRTH_FLG_NC'].replace(9.0, np.nan)
+    df_missing['CHILD_ETHNIC_GRP_NC'] = df_missing['CHILD_ETHNIC_GRP_NC'].replace('z', np.nan)
+
+    missing_copy = df_missing.copy()
+    true_copy = df_true.copy()
+    to_encode = ['LHB_DEP_NC', 'CHILD_SEX_NC', 'CHILD_ETHNIC_GRP_NC', 'LSOA_CD_BIRTH_NC']
+    final_df_missing, final_true_df, encoders = encode_cat_cols(missing_copy, true_copy, to_encode)
+
+    target = 'BIRTH_WEIGHT_NC'
+    mask = old_df[target].notna()
+    true = old_df[target][mask]
+    maybe_true = full_df['BIRTH_WEIGHT_NC_fill'].dropna()[mask]
+    true = true.loc[maybe_true.index]
+    print(len(maybe_true))
+    print(len(true))
+
+    print(mean_absolute_error(true, maybe_true))
+    # agreements = (true == maybe_true).sum()
+    # agreements = agreements / len(true)
+    # print(agreements)
+
+    # conf_low, conf_high = proportion_confint(agreements, len(true), method='wilson')
+    # print(conf_low)
+    # print(conf_high)
+
+    return final_true_df, final_df_missing, encoders
+
+
+def encode_cat_cols(df, true_df, cols):
+    encoders = {}
+    for col in cols:
+        ordinal = OrdinalEncoder(min_frequency=80, handle_unknown='use_encoded_value', unknown_value=np.nan)
+        if col == 'LSOA_CD_BIRTH_NC':
+            ordinal.fit(true_df[[col]])
+            missing_encoded = pd.DataFrame(ordinal.transform(df[[col]]), index=df.index, columns=[col])
+            true_encoded = pd.DataFrame(ordinal.transform(true_df[[col]]), index=true_df.index, columns=[col])
+            df[col] = missing_encoded[col].copy()
+            true_df[col] = true_encoded[col].copy()
+        else:
+            missing_encoded = pd.DataFrame(ordinal.fit_transform(df[[col]]), index=df.index, columns=[col])
+            df[col] = missing_encoded[col].copy()
+        categories = ordinal.categories_[0]
+        decoding_map = {i: categories[i] for i in range(len(categories))}
+        encoders[col] = decoding_map
+
+    return df, true_df, encoders
+
+
+
+
+
 if __name__ == '__main__':
-    print('starting')
-    # synthetize()
+    dataset_file = './datasets/key.csv'
+    old_dataset = './datasets/JS_NCCH.csv'
+    deprivation_file = './datasets/decile_scores.csv'
 
-    birth_data = pd.read_csv('datasets/clinical/birth_data_missing.csv')
-    true_data = pd.read_csv('datasets/clinical/birth_data.csv')
-    insights = BirthInsights(birth_data)
-    hyper_imputer = HyperImputer(insights.df, true_data, 'hyperimpute')
-    start = time.time()
-    # targets = ['gain', 'mice', 'missforest']
-    # results = hyper_imputer.benchmark_models(targets)
-    # print(results)
-    hyper_imputer.subpopulation_impute()
-    print("Time taken: ", time.time() - start)
-    hyper_imputer.plot_performance()
-    hyper_imputer.explain()
+    true_data, missing_data, encoders = prep_data(old_dataset, dataset_file, deprivation_file)
 
-
-
-
-    # data = pd.read_csv('datasets/clinical/birth_data.csv')
-    # generator = GPT4Generator(data, ['MAT_SMOKING_NC', 'BREASTFEED_BIRTH_FLG_NC', 'BIRTH_WEIGHT_NC', 'GEST_AGE_NC'])
-    # generator.list_files()
-    # generator.create_batch('file-h9GJRFOEo2hNJLPRE3MYyvJf')
-    # insights()
-    # synthetize()
+    # Uncomment the following lines to run the hyperimputation
+    # imputer = HyperImpute(missing_data, true_data, encoders, "hyperimpute", False)
+    # Imputers available: ['miracle', 'ice', 'gain', 'nop', 'softimpute', 'EM', 'sklearn_ice', 'most_frequent', 'sklearn_missforest', 'sinkhorn', 'miwae', 'mean', 'mice', 'hyperimpute', 'median', 'missforest']
+    # imputer.benchmark_models(['hyperimpute'])
+    # imputer.custom_imputation('LSOA_CD_BIRTH_NC')
+    # imputer.custom_LSOA_impute()
